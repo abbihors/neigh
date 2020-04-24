@@ -133,10 +133,17 @@ def save_bytes_to_wav(data_bytes):
     f.close()
 
 def trim_and_pad_bytes(data_bytes, seconds):
-    trim_to_length = int(seconds * SAMPLE_RATE * FORMAT_WIDTH_IN_BYTES * CHANNELS)
-    if len(data_bytes) < trim_to_length:
-        data_bytes += bytes(trim_to_length - len(data_bytes)) # Pad with zero bytes
-    return data_bytes[:trim_to_length] # Trim
+    desired_length = int(seconds * SAMPLE_RATE * FORMAT_WIDTH_IN_BYTES * CHANNELS)
+
+    # Pad with zero bytes
+    if len(data_bytes) < desired_length:
+        difference = desired_length - len(data_bytes)
+        data_bytes += bytes(difference)
+
+    # Trim
+    data_bytes = data_bytes[:desired_length]
+
+    return data_bytes
 
 def predict_class(samples):
     labels = ['animal', 'other']
@@ -153,7 +160,7 @@ def calculate_vibration_strength(curve, volume, recent_speech_count):
     return curve(volume, recent_speech_count)
     
 def curve_linear(volume, recent_speech_count):
-    return volume / MAX_EXPECTED_VOL
+    return min(1.0, round(volume / MAX_EXPECTED_VOL, 2))
 
 def curve_evil(volume, recent_speech_count):
     # Sigmoid function to make it extra evil
