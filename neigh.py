@@ -225,8 +225,8 @@ async def vibrate_ws(websocket, path):
             print('Got caw: ', volume, vibration_strength)
             # playsound('alert_sounds/quake_hitsound.mp3')
             
-            # Save audio, helps keep track of false positives
-            save_bytes_to_wav(speech_bytes)
+        # Save every recording to help improve model
+        save_bytes_to_wav(speech_bytes)
 
 start_server = websockets.serve(vibrate_ws, "localhost", 8765)
 
