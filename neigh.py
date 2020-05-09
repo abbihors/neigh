@@ -21,6 +21,9 @@ import numpy as np
 import librosa
 import pyaudio
 
+import asyncio
+import websockets
+
 # --------------------------------- Constants -------------------------------- #
 
 # Audio settings
@@ -113,7 +116,8 @@ def print_volume_loop():
         if (volume > RECORD_VOL):
             print('Threshold met: ', volume)
         else:
-            print(volume)
+            # print(volume)
+            pass
 
     stream.close()
     p.terminate()
@@ -145,7 +149,7 @@ def trim_and_pad_bytes(data_bytes, seconds):
 
     return data_bytes
 
-def predict_class(samples):
+def predict_class(model, samples):
     labels = ['animal', 'other']
 
     mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
@@ -178,7 +182,15 @@ def curve_evil(volume, recent_speech_count):
 
 # ------------------------------- Main function ------------------------------ #
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+
+
+async def vibrate_ws(websocket, path):
+    # greeting = f"VIBRATE"
+
+    # await websocket.send(greeting)
+    # print(f"> {greeting}")
+
     model = load_model('models/' + sys.argv[1])
     speech_timestamps = [] 
 
@@ -186,6 +198,7 @@ if __name__ == "__main__":
     # print_volume_loop()
 
     print('Listening...')
+    # await websocket.send("listening!!!!")
 
     while True:
         speech_bytes = listen_and_record_speech()
@@ -193,7 +206,7 @@ if __name__ == "__main__":
 
         # Keras model expects an array of floats
         speech_floats = librosa.util.buf_to_float(speech_bytes, FORMAT_WIDTH_IN_BYTES)
-        prediction = predict_class(speech_floats)
+        prediction = predict_class(model, speech_floats)
 
         if (prediction == 'animal'):
             volume = audioop.rms(speech_bytes, FORMAT_WIDTH_IN_BYTES)
@@ -207,8 +220,15 @@ if __name__ == "__main__":
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
 
+            await websocket.send(str(vibration_strength))
+
             print('Got caw: ', volume, vibration_strength)
-            playsound('alert_sounds/quake_hitsound.mp3')
+            # playsound('alert_sounds/quake_hitsound.mp3')
             
             # Save audio, helps keep track of false positives
             save_bytes_to_wav(speech_bytes)
+
+start_server = websockets.serve(vibrate_ws, "localhost", 8765)
+
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
