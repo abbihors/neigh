@@ -24,6 +24,9 @@ import pyaudio
 import asyncio
 import websockets
 
+from buttplug.client import (ButtplugClientWebsocketConnector, ButtplugClient, ButtplugClientDevice, ButtplugClientConnectorError)
+from buttplug.core import ButtplugLogLevel
+
 # --------------------------------- Constants -------------------------------- #
 
 # Audio settings
@@ -185,11 +188,28 @@ def curve_evil(volume, recent_speech_count):
 # if __name__ == "__main__":
 
 
-async def vibrate_ws(websocket, path):
-    # greeting = f"VIBRATE"
+def device_added(emitter, dev: ButtplugClientDevice):
+    asyncio.create_task(start_listening(dev))
 
-    # await websocket.send(greeting)
-    # print(f"> {greeting}")
+async def main():
+    client = ButtplugClient("Neigh")
+    connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
+
+    client.device_added_handler += device_added
+
+    try:
+        await client.connect(connector)
+    except ButtplugClientConnectorError as e:
+        print("Could not connect to server, exiting: {}".format(e.message))
+        return
+
+    await client.start_scanning()
+
+    await asyncio.sleep(3600 * 2)
+
+
+async def start_listening(dev: ButtplugClientDevice):
+    print("Device Added: {}".format(dev.name))
 
     model = load_model('models/' + sys.argv[1])
     speech_timestamps = [] 
@@ -220,7 +240,9 @@ async def vibrate_ws(websocket, path):
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
 
-            await websocket.send(str(vibration_strength))
+            await dev.send_vibrate_cmd(vibration_strength)
+            await asyncio.sleep(1)
+            await dev.send_stop_device_cmd()
 
             print('Got caw: ', volume, vibration_strength)
             # playsound('alert_sounds/quake_hitsound.mp3')
@@ -228,7 +250,8 @@ async def vibrate_ws(websocket, path):
         # Save every recording to help improve model
         save_bytes_to_wav(speech_bytes)
 
-start_server = websockets.serve(vibrate_ws, "localhost", 8765)
+# start_server = websockets.serve(vibrate_ws, "localhost", 8765)
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+# asyncio.get_event_loop().run_until_complete(main)
+# asyncio.get_event_loop().run_forever()
+asyncio.run(main(), debug=True)
