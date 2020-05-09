@@ -126,12 +126,13 @@ def print_volume_loop():
     p.terminate()
 
 # TODO: See if there's a cleaner way to write a WAV file
-def save_bytes_to_wav(data_bytes):
+def save_bytes_to_wav(data_bytes, folder):
     epoch_time = int(time.time())
     filename = f'output_{epoch_time}'
 
-    os.makedirs('recordings', exist_ok=True)
-    f = wave.open(f'recordings/{filename}.wav', 'wb')
+    # Make sure folder exists
+    os.makedirs(folder, exist_ok=True)
+    f = wave.open(f'{folder}/{filename}.wav', 'wb')
     f.setnchannels(CHANNELS)
     f.setsampwidth(FORMAT_WIDTH_IN_BYTES)
     f.setframerate(SAMPLE_RATE)
@@ -183,9 +184,27 @@ def curve_evil(volume, recent_speech_count):
 
     return vibration_strength
 
+# ------------------------------ Buttplug stuff ------------------------------ #
+
+async def init_buttplug_client():
+    client = ButtplugClient("Neigh")
+    connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
+
+    await client.connect(connector)
+    await client.start_scanning()
+
+    # Wait until we get a device
+    while client.devices == {}:
+        await asyncio.sleep(1)
+
+    return client
+
 # ------------------------------- Main function ------------------------------ #
 
-async def main(dev: ButtplugClientDevice):
+async def main():
+    bp_client = await init_buttplug_client()
+    bp_device = bp_client.devices[0] # Just get the first device
+
     model = load_model('models/' + sys.argv[1])
     speech_timestamps = [] 
 
@@ -214,41 +233,18 @@ async def main(dev: ButtplugClientDevice):
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
 
-            await dev.send_vibrate_cmd(vibration_strength)
+            await bp_device.send_vibrate_cmd(vibration_strength)
             await asyncio.sleep(1)
-            await dev.send_stop_device_cmd()
+            await bp_device.send_stop_device_cmd()
 
             print('Got caw: ', volume, vibration_strength)
             # playsound('alert_sounds/quake_hitsound.mp3')
             
         # Save every recording to help improve model
-        save_bytes_to_wav(speech_bytes)
+        if prediction == 'animal':
+            save_bytes_to_wav(speech_bytes, './recordings/animal')
+        else:
+            save_bytes_to_wav(speech_bytes, './recordings/other')
 
-def device_added_cb(emitter, dev: ButtplugClientDevice):
-    print(f"Device added: {dev.name}")
-    # Run the main function when a device is added
-    asyncio.create_task(main(dev))
-
-async def asyncio_main():
-    client = ButtplugClient("Neigh")
-    connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
-
-    # Add callback
-    client.device_added_handler += device_added_cb
-
-    # Connect to the server
-    await client.connect(connector)
-
-    # Start scanning, once a device is found callback will be called
-    await client.start_scanning()
-
-    # Wait until device is found...
-
-    # Run forever, basically
-    await asyncio.sleep(60 * 60 * 24)
-
-asyncio.run(asyncio_main())
-
-# setup buttplug
-# wait for device (future? promise?)
-# run main function
+# Start program
+asyncio.run(main())
