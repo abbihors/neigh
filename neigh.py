@@ -185,32 +185,7 @@ def curve_evil(volume, recent_speech_count):
 
 # ------------------------------- Main function ------------------------------ #
 
-# if __name__ == "__main__":
-
-
-def device_added(emitter, dev: ButtplugClientDevice):
-    asyncio.create_task(start_listening(dev))
-
-async def main():
-    client = ButtplugClient("Neigh")
-    connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
-
-    client.device_added_handler += device_added
-
-    try:
-        await client.connect(connector)
-    except ButtplugClientConnectorError as e:
-        print("Could not connect to server, exiting: {}".format(e.message))
-        return
-
-    await client.start_scanning()
-
-    await asyncio.sleep(3600 * 2)
-
-
-async def start_listening(dev: ButtplugClientDevice):
-    print("Device Added: {}".format(dev.name))
-
+async def main(dev: ButtplugClientDevice):
     model = load_model('models/' + sys.argv[1])
     speech_timestamps = [] 
 
@@ -218,7 +193,6 @@ async def start_listening(dev: ButtplugClientDevice):
     # print_volume_loop()
 
     print('Listening...')
-    # await websocket.send("listening!!!!")
 
     while True:
         speech_bytes = listen_and_record_speech()
@@ -250,8 +224,31 @@ async def start_listening(dev: ButtplugClientDevice):
         # Save every recording to help improve model
         save_bytes_to_wav(speech_bytes)
 
-# start_server = websockets.serve(vibrate_ws, "localhost", 8765)
+def device_added_cb(emitter, dev: ButtplugClientDevice):
+    print(f"Device added: {dev.name}")
+    # Run the main function when a device is added
+    asyncio.create_task(main(dev))
 
-# asyncio.get_event_loop().run_until_complete(main)
-# asyncio.get_event_loop().run_forever()
-asyncio.run(main(), debug=True)
+async def asyncio_main():
+    client = ButtplugClient("Neigh")
+    connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
+
+    # Add callback
+    client.device_added_handler += device_added_cb
+
+    # Connect to the server
+    await client.connect(connector)
+
+    # Start scanning, once a device is found callback will be called
+    await client.start_scanning()
+
+    # Wait until device is found...
+
+    # Run forever, basically
+    await asyncio.sleep(60 * 60 * 24)
+
+asyncio.run(asyncio_main())
+
+# setup buttplug
+# wait for device (future? promise?)
+# run main function
