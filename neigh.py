@@ -8,6 +8,7 @@
 
 from datetime import datetime
 from collections import deque
+import subprocess
 import audioop
 import time
 import math
@@ -186,6 +187,11 @@ def curve_evil(volume, recent_speech_count):
 
 # ------------------------------ Buttplug stuff ------------------------------ #
 
+async def start_buttplug_server():
+    await asyncio.create_subprocess_exec("/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli", "--wsinsecureport", "12345")
+    await asyncio.sleep(1) # Wait for the server to start up
+    print('Buttplug server started')
+
 async def init_buttplug_client():
     client = ButtplugClient("Neigh")
     connector = ButtplugClientWebsocketConnector("ws://127.0.0.1:12345")
@@ -202,6 +208,8 @@ async def init_buttplug_client():
 # ------------------------------- Main function ------------------------------ #
 
 async def main():
+    await start_buttplug_server()
+
     bp_client = await init_buttplug_client()
     bp_device = bp_client.devices[0] # Just get the first device
 
