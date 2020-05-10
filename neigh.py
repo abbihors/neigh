@@ -9,6 +9,8 @@
 from datetime import datetime
 from collections import deque
 import subprocess
+import concurrent
+from datetime import datetime
 import audioop
 import time
 import math
@@ -16,7 +18,7 @@ import wave
 import os
 import sys
 
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from playsound import playsound
 import numpy as np
 import librosa
@@ -207,22 +209,38 @@ async def init_buttplug_client():
 
 # ------------------------------- Main function ------------------------------ #
 
+async def vibrate_worker(queue, bp_device):
+    print('Starting vibrate worker')
+
+    while True:
+        # print(f'queue: {queue}, qsize: {queue.qsize()}')
+        if queue.qsize() == 0:
+            # print(f'# Stopped vibing at: {datetime.now()}')
+            await bp_device.send_stop_device_cmd()
+            
+        vibration_strength = await queue.get()
+        # print(f'# Started vibing at: {datetime.now()}')
+        await bp_device.send_vibrate_cmd(vibration_strength)
+        queue.task_done()
+        await asyncio.sleep(1)
+
 async def main():
     await start_buttplug_server()
 
     bp_client = await init_buttplug_client()
     bp_device = bp_client.devices[0] # Just get the first device
 
-    model = load_model('models/' + sys.argv[1])
-    speech_timestamps = [] 
+    queue = asyncio.Queue()
+    asyncio.create_task(vibrate_worker(queue, bp_device))
 
-    # Uncomment line below to print the current volume in a loop
-    # print_volume_loop()
+    model = load_model('models/' + sys.argv[1])
+    speech_timestamps = []
 
     print('Listening...')
-
+        
     while True:
-        speech_bytes = listen_and_record_speech()
+        loop = asyncio.get_running_loop()
+        speech_bytes = await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), listen_and_record_speech)
         speech_bytes = trim_and_pad_bytes(speech_bytes, 1.0) # Trim to 1 second long
 
         # Keras model expects an array of floats
@@ -240,11 +258,8 @@ async def main():
 
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
-
-            await bp_device.send_vibrate_cmd(vibration_strength)
-            await asyncio.sleep(1)
-            await bp_device.send_stop_device_cmd()
-
+            await queue.put(vibration_strength)
+            
             print('Got caw: ', volume, vibration_strength)
             # playsound('alert_sounds/quake_hitsound.mp3')
             
