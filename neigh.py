@@ -205,6 +205,8 @@ async def init_buttplug_client():
     while client.devices == {}:
         await asyncio.sleep(1)
 
+    await client.stop_scanning()
+
     return client
 
 # ------------------------------- Main function ------------------------------ #
