@@ -4,31 +4,25 @@
 #                                   neigh.py                                   #
 # ---------------------------------------------------------------------------- #
 
-# TODO: refactor to use cleaner sound lib
-
-from datetime import datetime
 from collections import deque
-import subprocess
-import concurrent
 from datetime import datetime
-import audioop
-import time
-import math
-import wave
-import os
-import sys
-
-from tensorflow.keras.models import load_model
-from playsound import playsound
-import numpy as np
-import librosa
-import pyaudio
-
 import asyncio
-import websockets
+import audioop
+import concurrent
+import math
+import os
+import subprocess
+import sys
+import time
+import wave
 
-from buttplug.client import (ButtplugClientWebsocketConnector, ButtplugClient, ButtplugClientDevice, ButtplugClientConnectorError)
-from buttplug.core import ButtplugLogLevel
+from buttplug.client import ButtplugClient
+from buttplug.client import ButtplugClientWebsocketConnector
+from playsound import playsound
+from tensorflow.keras.models import load_model
+import librosa
+import numpy as np
+import pyaudio
 
 # --------------------------------- Constants -------------------------------- #
 
