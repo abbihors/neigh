@@ -156,7 +156,7 @@ def predict_class(model, samples):
 
     mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
     mfccs = np.reshape(mfccs, (1, 40, 32, 1))
-    prediction_index = model.predict_classes(mfccs)[0]
+    prediction_index = (model.predict(mfccs) > 0.5).astype("int32")[0][1]
 
     return sorted(labels)[prediction_index]
 
@@ -231,7 +231,7 @@ async def main():
     queue = asyncio.Queue()
     asyncio.create_task(vibrate_worker(queue, bp_device))
 
-    model = load_model('models/' + sys.argv[1])
+    model = load_model(sys.argv[1])
     speech_timestamps = []
 
     print('Listening...')
