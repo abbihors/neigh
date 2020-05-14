@@ -48,6 +48,7 @@ PREV_AUDIO_S = 0.2
 MAX_EXPECTED_VOL = 2000
 
 # The time period over which to measure frequency, in seconds
+# TODO: Clean this up, this makes no sense
 SPEECH_FREQUENCY_TIME_PERIOD = 60
 
 # --------------------------------- Recording -------------------------------- #
@@ -184,7 +185,8 @@ def curve_evil(volume, recent_speech_count):
 # ------------------------------ Buttplug stuff ------------------------------ #
 
 async def start_buttplug_server():
-    await asyncio.create_subprocess_exec("/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli", "--wsinsecureport", "12345")
+    server_path = "/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli"
+    await asyncio.create_subprocess_exec(server_path, "--wsinsecureport", "12345")
     await asyncio.sleep(1) # Wait for the server to start up
     print('Buttplug server started')
 
@@ -250,7 +252,8 @@ async def main():
             speech_timestamps.append(datetime.now())
             
             # Remove old timestamps
-            speech_timestamps = [ts for ts in speech_timestamps if (datetime.now() - ts).seconds < SPEECH_FREQUENCY_TIME_PERIOD]
+            speech_timestamps = [ts for ts in speech_timestamps
+                if (datetime.now() - ts).seconds < SPEECH_FREQUENCY_TIME_PERIOD]
 
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
