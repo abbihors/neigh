@@ -211,13 +211,12 @@ async def vibrate_worker(queue, bp_device):
     print('Starting vibrate worker')
 
     while True:
-        # print(f'queue: {queue}, qsize: {queue.qsize()}')
         if queue.qsize() == 0:
-            # print(f'# Stopped vibing at: {datetime.now()}')
             await bp_device.send_stop_device_cmd()
             
         vibration_strength = await queue.get()
-        # print(f'# Started vibing at: {datetime.now()}')
+
+        vibration_strength = max(0.1, vibration_strength)
         await bp_device.send_vibrate_cmd(vibration_strength)
         queue.task_done()
         await asyncio.sleep(1)
