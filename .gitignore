@@ -7,3 +7,5 @@ caw_ideas.md
 spec.md
 .vscode
 env
+__pycache__
+config.json
