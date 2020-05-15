@@ -212,15 +212,13 @@ async def vibrate_worker(queue, bp_device):
     print('Starting vibrate worker')
 
     while True:
-        if queue.qsize() == 0:
-            await bp_device.send_stop_device_cmd()
-            
         vibration_strength = await queue.get()
 
         vibration_strength = max(0.1, vibration_strength)
         await bp_device.send_vibrate_cmd(vibration_strength)
         queue.task_done()
         await asyncio.sleep(1)
+        await bp_device.send_stop_device_cmd()
 
 async def main():
     await start_buttplug_server()
