@@ -156,9 +156,10 @@ def predict_class(model, samples):
 
     mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
     mfccs = np.reshape(mfccs, (1, 40, 32, 1))
-    prediction_index = (model.predict(mfccs) > 0.5).astype("int32")[0][1]
 
-    return sorted(labels)[prediction_index]
+    prediction = (model.predict(mfccs) > 0.5).astype("int32")[0][0]
+
+    return sorted(labels)[prediction]
 
 # --------------------------------- Vibration -------------------------------- #
 
