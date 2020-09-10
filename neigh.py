@@ -34,7 +34,12 @@ DEFAULT_CONFIG = {
     "server_path": "/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli",
     "record_vol": 160,
     "max_expected_vol": 1600,   
-    "buildup_count": 20
+    "buildup_count": 20,
+    # neighbar settings
+    "neighbar_neigh_value": 0.05,
+    "neighbar_decay_s": 0.01,
+    "neighbar_buzz_start": 0.5,
+    "neighbar_buzz_factor": 0.3
 }
 
 # Audio settings
@@ -54,7 +59,7 @@ PREV_AUDIO_S = 0.2
 
 # The time period over which to measure frequency, in seconds
 # TODO: Clean this up, this makes no sense
-SPEECH_FREQUENCY_TIME_PERIOD = 60
+SPEECH_FREQUENCY_SAMPLING_INTERVAL = 60
 
 # --------------------------------- Recording -------------------------------- #
 
@@ -185,12 +190,12 @@ def curve_evil(volume, recent_speech_count):
     # Sigmoid function to make it extra evil
     vibration_strength = 1 / (1 + (math.e ** ((-volume / (max_expected_vol / 10)) + 5)))
 
-    speech_frequency = recent_speech_count / SPEECH_FREQUENCY_TIME_PERIOD
+    speech_frequency = recent_speech_count / SPEECH_FREQUENCY_SAMPLING_INTERVAL
 
     # 20 caws per minute to get max effect = freq = 0.333
     frequency_multiplier = min(1.0,
         speech_frequency /
-            (buildup_count / SPEECH_FREQUENCY_TIME_PERIOD))
+            (buildup_count / SPEECH_FREQUENCY_SAMPLING_INTERVAL))
 
     vibration_strength = vibration_strength * (0.5 + (0.5 * frequency_multiplier))
     vibration_strength = round(vibration_strength, 2) # 2 decimal places = 100 values between 0 and 1
@@ -219,7 +224,7 @@ async def init_buttplug_client():
 
     return client
 
-# ------------------------------- Main function ------------------------------ #
+# ----------------------------------- Misc ----------------------------------- #
 
 async def load_config():
     global CONFIG
@@ -237,6 +242,7 @@ async def load_config():
 
     print("Neigh: config.json loaded")
 
+# This runs in the background and waits for things to be put in the queue
 async def vibrate_worker(queue, bp_device):
     print('Starting vibrate worker')
 
@@ -248,6 +254,8 @@ async def vibrate_worker(queue, bp_device):
         queue.task_done()
         await asyncio.sleep(1)
         await bp_device.send_stop_device_cmd()
+
+# ------------------------------- Main function ------------------------------ #
 
 async def main():
     await load_config()
@@ -281,13 +289,13 @@ async def main():
             
             # Remove old timestamps
             speech_timestamps = [ts for ts in speech_timestamps
-                if (datetime.now() - ts).seconds < SPEECH_FREQUENCY_TIME_PERIOD]
+                if (datetime.now() - ts).seconds < SPEECH_FREQUENCY_SAMPLING_INTERVAL]
 
             # Do fun stuff!
             vibration_strength = calculate_vibration_strength(curve_evil, volume, len(speech_timestamps))
             await queue.put(vibration_strength)
             
-            print('Got caw: ', volume, vibration_strength)
+            print(f'Got animal sound, vol: {volume}, vibe: {vibration_strength}')
             # playsound('alert_sounds/quake_hitsound.mp3')
             
         # Save every recording to help improve model
