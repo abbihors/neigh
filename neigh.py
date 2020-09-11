@@ -30,16 +30,12 @@ import pyaudio
 CONFIG = {}
 
 DEFAULT_CONFIG = {
-    "model_path": "models/crow_2020.05.15-14.51.21.hdf5",
+    "model_path": "/Users/abbi/dev/jupyter/neigh-ml/saved_models/horse_2020.09.10-10.19.10.hdf5",
+    "recordings_path": "/Users/abbi/dev/jupyter/neigh-ml/unprocessed_recordings",
     "server_path": "/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli",
     "record_vol": 160,
     "max_expected_vol": 1600,   
-    "buildup_count": 20,
-    # neighbar settings
-    "neighbar_neigh_value": 0.05,
-    "neighbar_decay_s": 0.01,
-    "neighbar_buzz_start": 0.5,
-    "neighbar_buzz_factor": 0.3
+    "buildup_count": 20
 }
 
 # Audio settings
@@ -296,13 +292,13 @@ async def main():
             await queue.put(vibration_strength)
             
             print(f'Got animal sound, vol: {volume}, vibe: {vibration_strength}')
-            # playsound('alert_sounds/quake_hitsound.mp3')
+            # playsound('~/dev/soundfx/quake_hitsound.mp3')
             
         # Save every recording to help improve model
         if prediction == 'animal':
-            save_bytes_to_wav(speech_bytes, './recordings/animal')
+            save_bytes_to_wav(speech_bytes, CONFIG['recordings_path'] + '/animal')
         else:
-            save_bytes_to_wav(speech_bytes, './recordings/other')
+            save_bytes_to_wav(speech_bytes, CONFIG['recordings_path'] + '/other')
 
 # Start program
 asyncio.run(main())
