@@ -275,9 +275,9 @@ async def main():
 
         # Keras model expects an array of floats
         speech_floats = librosa.util.buf_to_float(speech_bytes, FORMAT_WIDTH_IN_BYTES)
-        prediction = predict_class(model, speech_floats)
+        predicted_class = predict_class(model, speech_floats)
 
-        if (prediction == 'animal'):
+        if (predicted_class == 'animal'):
             volume = audioop.rms(speech_bytes, FORMAT_WIDTH_IN_BYTES)
             
             # Add timestamp
@@ -294,11 +294,9 @@ async def main():
             print(f'Got animal sound, vol: {volume}, vibe: {vibration_strength}')
             # playsound('~/dev/soundfx/quake_hitsound.mp3')
             
-        # Save every recording to help improve model
-        if prediction == 'animal':
-            save_bytes_to_wav(speech_bytes, CONFIG['recordings_path'] + '/animal')
-        else:
-            save_bytes_to_wav(speech_bytes, CONFIG['recordings_path'] + '/other')
+        # Save recordings to help improve model
+        recording_filename = CONFIG['recordings_path'] + '/' + predicted_class
+        save_bytes_to_wav(speech_bytes, recording_filename)
 
 # Start program
 asyncio.run(main())
