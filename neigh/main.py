@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 
-# ---------------------------------------------------------------------------- #
-#                                   neigh.py                                   #
-# ---------------------------------------------------------------------------- #
-
 from collections import deque
 from datetime import datetime
 import asyncio
@@ -23,7 +19,10 @@ from playsound import playsound
 from tensorflow.keras.models import load_model
 import librosa
 import numpy as np
-import pyaudio
+
+from recorder import Recorder
+
+# TODO: modularize config
 
 # --------------------------------- Constants -------------------------------- #
 
@@ -40,7 +39,6 @@ DEFAULT_CONFIG = {
 
 # Audio settings
 SAMPLE_RATE = 16000
-FORMAT = pyaudio.paInt16
 FORMAT_WIDTH_IN_BYTES = 2
 CHANNELS = 1
 
@@ -57,109 +55,6 @@ PREV_AUDIO_S = 0.2
 # TODO: Clean this up, this makes no sense
 SPEECH_FREQUENCY_SAMPLING_INTERVAL = 60
 
-# --------------------------------- Recording -------------------------------- #
-
-# Returns samples of speech
-def listen_and_record_speech():
-    p = pyaudio.PyAudio()
-
-    stream = p.open(
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=SAMPLE_RATE,
-        input=True,
-        frames_per_buffer=CHUNK)
-
-    out_speech_samples = b''
-    current_data = b''
-    recording_started = False
-
-    # One second can be represented by this many chunks
-    CHUNKS_PER_SECOND = SAMPLE_RATE / CHUNK
-
-    # This sliding window will hold the average volumes of each chunk up
-    # to MAX_SILENCE_S seconds in total
-    sliding_window = deque(maxlen=round(MAX_SILENCE_S * CHUNKS_PER_SECOND))
-    
-    # Holds the chunks of previous audio
-    prev_audio = deque(maxlen=round(PREV_AUDIO_S * CHUNKS_PER_SECOND))
-
-    record_vol = CONFIG['record_vol']
-
-    # While no phrase has been detected/recorded
-    while True:
-        current_data = stream.read(CHUNK)
-
-        volume = audioop.rms(current_data, FORMAT_WIDTH_IN_BYTES)
-        sliding_window.append(volume)
-
-        # At least one sample in window was above recording threshold
-        if (any([volume > record_vol for volume in sliding_window])):
-            if (not recording_started):
-                recording_started = True
-            out_speech_samples = out_speech_samples + current_data
-        # No samples above threshold and recording_started, stop recording
-        elif (recording_started == True):
-            stream.close()
-            p.terminate()
-            return b''.join(list(prev_audio)) + out_speech_samples
-        # No samples above threshold and not recording_started, add previous sound
-        else:
-            prev_audio.append(current_data)
-
-# Can be used to calibrate recording settings
-def print_volume_loop():
-    record_vol = CONFIG['record_vol']
-
-    p = pyaudio.PyAudio()
-
-    stream = p.open(
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=SAMPLE_RATE,
-        input=True,
-        frames_per_buffer=CHUNK)
-
-    while True:
-        audio_data = stream.read(CHUNK)
-        volume = audioop.rms(audio_data, FORMAT_WIDTH_IN_BYTES)
-
-        if (volume > record_vol):
-            print('Threshold met: ', volume)
-        else:
-            # print(volume)
-            pass
-
-    stream.close()
-    p.terminate()
-
-# TODO: See if there's a cleaner way to write a WAV file
-def save_bytes_to_wav(data_bytes, folder):
-    epoch_time = int(time.time())
-    filename = f'output_{epoch_time}'
-
-    # Make sure folder exists
-    os.makedirs(folder, exist_ok=True)
-    f = wave.open(f'{folder}/{filename}.wav', 'wb')
-    f.setnchannels(CHANNELS)
-    f.setsampwidth(FORMAT_WIDTH_IN_BYTES)
-    f.setframerate(SAMPLE_RATE)
-    f.writeframes(data_bytes)
-
-    f.close()
-
-def trim_and_pad_bytes(data_bytes, seconds):
-    desired_length = int(seconds * SAMPLE_RATE * FORMAT_WIDTH_IN_BYTES * CHANNELS)
-
-    # Pad with zero bytes
-    if len(data_bytes) < desired_length:
-        difference = desired_length - len(data_bytes)
-        data_bytes += bytes(difference)
-
-    # Trim
-    data_bytes = data_bytes[:desired_length]
-
-    return data_bytes
 
 def predict_class(model, samples):
     labels = ['animal', 'other']
@@ -265,20 +160,21 @@ async def main():
 
     model = load_model(CONFIG['model_path'])
     speech_timestamps = []
+    recorder = Recorder()
 
     print('Neigh: Listening...')
-        
+
     while True:
         loop = asyncio.get_running_loop()
-        speech_bytes = await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), listen_and_record_speech)
-        speech_bytes = trim_and_pad_bytes(speech_bytes, 1.0) # Trim to 1 second long
+        await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), recorder.listen_and_record, CONFIG['record_vol'], MAX_SILENCE_S, PREV_AUDIO_S)
+        recorder.trim_or_pad(1.0)
 
         # Keras model expects an array of floats
-        speech_floats = librosa.util.buf_to_float(speech_bytes, FORMAT_WIDTH_IN_BYTES)
+        speech_floats = librosa.util.buf_to_float(recorder.get_bytes(), FORMAT_WIDTH_IN_BYTES)
         predicted_class = predict_class(model, speech_floats)
 
         if (predicted_class == 'animal'):
-            volume = audioop.rms(speech_bytes, FORMAT_WIDTH_IN_BYTES)
+            volume = recorder.get_rms_volume()
             
             # Add timestamp
             speech_timestamps.append(datetime.now())
@@ -295,8 +191,9 @@ async def main():
             # playsound('~/dev/soundfx/quake_hitsound.mp3')
             
         # Save recordings to help improve model
-        recording_filename = CONFIG['recordings_path'] + '/' + predicted_class
-        save_bytes_to_wav(speech_bytes, recording_filename)
+        epoch_time = int(time.time())
+        filename = f'{CONFIG["recordings_path"]}/{predicted_class}/output_{epoch_time}.wav'
+        recorder.write_wav(filename)
 
 # Start program
 asyncio.run(main())
