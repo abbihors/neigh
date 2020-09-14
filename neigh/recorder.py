@@ -8,6 +8,7 @@ import sounddevice as sd
 class Recorder():
 
     def __init__(self, samplerate=16000, channels=1, blocksize=1000, dtype='int16'):
+        # sounddevice has the option for non-raw Numpy streams, but I found these to be too slow
         self._stream = sd.RawInputStream(
             samplerate=samplerate,
             blocksize=blocksize,

@@ -21,29 +21,14 @@ import librosa
 import numpy as np
 
 from recorder import Recorder
-
-# TODO: modularize config
+import settings
 
 # --------------------------------- Constants -------------------------------- #
 
-CONFIG = {}
-
-DEFAULT_CONFIG = {
-    "model_path": "/Users/abbi/dev/jupyter/neigh-ml/saved_models/horse_2020.09.10-10.19.10.hdf5",
-    "recordings_path": "/Users/abbi/dev/jupyter/neigh-ml/unprocessed_recordings",
-    "server_path": "/Users/abbi/dev/intiface-cli-rs/target/release/intiface-cli",
-    "record_vol": 160,
-    "max_expected_vol": 1600,   
-    "buildup_count": 20
-}
-
-# Audio settings
+# Audio format settings
 SAMPLE_RATE = 16000
 FORMAT_WIDTH_IN_BYTES = 2
 CHANNELS = 1
-
-# Amount of frames (samples) to get each time we read data
-CHUNK = 1024
 
 # Seconds of silence that indicate end of speech
 MAX_SILENCE_S = 0.1
@@ -55,28 +40,17 @@ PREV_AUDIO_S = 0.2
 # TODO: Clean this up, this makes no sense
 SPEECH_FREQUENCY_SAMPLING_INTERVAL = 60
 
-
-def predict_class(model, samples):
-    labels = ['animal', 'other']
-
-    mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
-    mfccs = np.reshape(mfccs, (1, 40, 32, 1))
-
-    prediction = (model.predict(mfccs) > 0.5).astype("int32")[0][0]
-
-    return sorted(labels)[prediction]
-
 # --------------------------------- Vibration -------------------------------- #
 
 def calculate_vibration_strength(curve, volume, recent_speech_count):
     return curve(volume, recent_speech_count)
     
 def curve_linear(volume, recent_speech_count):
-    return min(1.0, round(volume / CONFIG['max_expected_vol'], 2))
+    return min(1.0, round(volume / settings.max_expected_vol, 2))
 
 def curve_evil(volume, recent_speech_count):
-    buildup_count = CONFIG['buildup_count']
-    max_expected_vol = CONFIG['max_expected_vol']
+    buildup_count = settings.buildup_count
+    max_expected_vol = settings.max_expected_vol
 
     # Sigmoid function to make it extra evil
     vibration_strength = 1 / (1 + (math.e ** ((-volume / (max_expected_vol / 10)) + 5)))
@@ -96,7 +70,7 @@ def curve_evil(volume, recent_speech_count):
 # ------------------------------ Buttplug stuff ------------------------------ #
 
 async def start_buttplug_server():
-    await asyncio.create_subprocess_exec(CONFIG['server_path'], "--wsinsecureport", "12345")
+    await asyncio.create_subprocess_exec(settings.server_path, "--wsinsecureport", "12345")
     await asyncio.sleep(1) # Wait for the server to start up
     print('Buttplug server started')
 
@@ -117,21 +91,15 @@ async def init_buttplug_client():
 
 # ----------------------------------- Misc ----------------------------------- #
 
-async def load_config():
-    global CONFIG
+def predict_class(model, samples):
+    labels = ['animal', 'other']
 
-    config_path = 'config.json'
+    mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
+    mfccs = np.reshape(mfccs, (1, 40, 32, 1))
 
-    if not os.path.exists(config_path):
-        print('Neigh: Missing config.json, generating a new one')
-    
-        with open(config_path, 'w') as config:
-            json.dump(DEFAULT_CONFIG, config, indent=4)
+    prediction = (model.predict(mfccs) > 0.5).astype("int32")[0][0]
 
-    with open(config_path) as config:
-        CONFIG = json.load(config)
-
-    print("Neigh: config.json loaded")
+    return sorted(labels)[prediction]
 
 # This runs in the background and waits for things to be put in the queue
 async def vibrate_worker(queue, bp_device):
@@ -149,7 +117,6 @@ async def vibrate_worker(queue, bp_device):
 # ------------------------------- Main function ------------------------------ #
 
 async def main():
-    await load_config()
     await start_buttplug_server()
 
     bp_client = await init_buttplug_client()
@@ -158,15 +125,16 @@ async def main():
     queue = asyncio.Queue()
     asyncio.create_task(vibrate_worker(queue, bp_device))
 
-    model = load_model(CONFIG['model_path'])
+    model = load_model(settings.model_path)
     speech_timestamps = []
-    recorder = Recorder()
+
+    recorder = Recorder(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16')
 
     print('Neigh: Listening...')
 
     while True:
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), recorder.listen_and_record, CONFIG['record_vol'], MAX_SILENCE_S, PREV_AUDIO_S)
+        await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), recorder.listen_and_record, settings.record_vol, MAX_SILENCE_S, PREV_AUDIO_S)
         recorder.trim_or_pad(1.0)
 
         # Keras model expects an array of floats
@@ -192,7 +160,7 @@ async def main():
             
         # Save recordings to help improve model
         epoch_time = int(time.time())
-        filename = f'{CONFIG["recordings_path"]}/{predicted_class}/output_{epoch_time}.wav'
+        filename = f'{settings.recordings_path}/{predicted_class}/output_{epoch_time}.wav'
         recorder.write_wav(filename)
 
 # Start program
