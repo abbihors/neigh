@@ -1,13 +1,11 @@
-#!/usr/bin/env python3
-
 from collections import deque
 from datetime import datetime
 import asyncio
 import audioop
-import concurrent
 import json
 import math
 import os
+import concurrent
 import subprocess
 import sys
 import time
@@ -91,20 +89,20 @@ async def init_buttplug_client():
 
 # ----------------------------------- Misc ----------------------------------- #
 
-def predict_class(model, samples):
-    labels = ['animal', 'other']
+def predict_class(model, sample_bytes):
+    # Keras model expects an array of floats
+    sample_floats = librosa.util.buf_to_float(sample_bytes, FORMAT_WIDTH_IN_BYTES)
 
-    mfccs = librosa.feature.mfcc(y=samples, sr=SAMPLE_RATE, n_mfcc=40)
+    mfccs = librosa.feature.mfcc(y=sample_floats, sr=SAMPLE_RATE, n_mfcc=40)
     mfccs = np.reshape(mfccs, (1, 40, 32, 1))
 
     prediction = (model.predict(mfccs) > 0.5).astype("int32")[0][0]
 
+    labels = ['animal', 'other']
     return sorted(labels)[prediction]
 
 # This runs in the background and waits for things to be put in the queue
 async def vibrate_worker(queue, bp_device):
-    print('Starting vibrate worker')
-
     while True:
         vibration_strength = await queue.get()
 
@@ -133,13 +131,12 @@ async def main():
     print('Neigh: Listening...')
 
     while True:
+        # Run the recorder in a separate thread to prevent blocking everything while it runs
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), recorder.listen_and_record, settings.record_vol, MAX_SILENCE_S, PREV_AUDIO_S)
-        recorder.trim_or_pad(1.0)
 
-        # Keras model expects an array of floats
-        speech_floats = librosa.util.buf_to_float(recorder.get_bytes(), FORMAT_WIDTH_IN_BYTES)
-        predicted_class = predict_class(model, speech_floats)
+        recorder.trim_or_pad(1.0)
+        predicted_class = predict_class(model, recorder.get_bytes())
 
         if (predicted_class == 'animal'):
             volume = recorder.get_rms_volume()
