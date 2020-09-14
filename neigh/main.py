@@ -133,7 +133,8 @@ async def main():
     while True:
         # Run the recorder in a separate thread to prevent blocking everything while it runs
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(concurrent.futures.ThreadPoolExecutor(), recorder.listen_and_record, settings.record_vol, MAX_SILENCE_S, PREV_AUDIO_S)
+        e = concurrent.futures.ThreadPoolExecutor()
+        await loop.run_in_executor(e, recorder.listen_and_record, settings.record_vol, MAX_SILENCE_S, PREV_AUDIO_S)
 
         recorder.trim_or_pad(1.0)
         predicted_class = predict_class(model, recorder.get_bytes())
