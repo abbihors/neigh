@@ -10,6 +10,7 @@ import numpy as np
 
 from recorder import Recorder
 from vibrator import Vibrator
+from vibrate_patterns import *
 import settings
 
 # Audio format settings
@@ -36,10 +37,20 @@ def predict_class(model, sample_bytes):
     return sorted(labels)[prediction]
 
 async def vibrate_random(vibrator):
-    amount = round(random.uniform(0.3, 1.0), 2)
-    duration = round(random.uniform(1.0, 1.5), 2)
-    print(f'Vibrating: {amount}, {duration}s')
-    await vibrator.vibrate(amount, duration)
+    weights = {
+        pattern_basic: 7,
+        pattern_burst: 1,
+        pattern_burst_pulse: 1,
+        pattern_burst_linger: 1
+    }
+
+    raffle = []
+    for pattern, weight in weights.items():
+        for i in range(weight):
+            raffle.append(pattern)
+    pattern = random.choice(raffle)
+
+    await pattern(vibrator)
 
 async def main():
     model = load_model(settings.model_path)
