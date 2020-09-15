@@ -25,17 +25,19 @@ class Vibrator():
     # This runs in the background and waits for things to be put in the queue
     async def update_vibrator(self):
         while True:
-            amount, duration = await self._vibrate_queue.get()
+            amount, on_time, off_time = await self._vibrate_queue.get()
 
             await self._bp_device.send_vibrate_cmd(amount)
             self._vibrate_queue.task_done()
-            await asyncio.sleep(duration)
+            await asyncio.sleep(on_time)
 
-            if self._vibrate_queue.empty():
+            if self._vibrate_queue.empty() or off_time > 0:
                 await self._bp_device.send_vibrate_cmd(self._vibration_level)
 
-    async def vibrate(self, amount, duration):
-        await self._vibrate_queue.put([amount, duration])
+            await asyncio.sleep(off_time)
+
+    async def vibrate(self, amount, on_time, off_time=0.0):
+        await self._vibrate_queue.put([amount, on_time, off_time])
 
     async def set_vibration_level(self, amount):
         self._vibration_level = amount
