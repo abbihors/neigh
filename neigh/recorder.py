@@ -68,7 +68,7 @@ class Recorder():
 
         while True:
             current_block, overflowed = self._stream.read(frames=self._stream.blocksize)
-            if(overflowed):
+            if overflowed:
                 print('PortAudio overflowed! Input was discarded')
 
             # RMS is used as a measure of "average" loudness

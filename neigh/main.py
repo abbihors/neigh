@@ -38,10 +38,11 @@ def predict_class(model, sample_bytes):
 
 async def vibrate_random(vibrator):
     weights = {
-        pattern_basic: 7,
+        pattern_basic: 9,
         pattern_burst: 1,
         pattern_burst_pulse: 1,
-        pattern_burst_linger: 1
+        pattern_burst_linger: 1,
+        pattern_rising: 1
     }
 
     raffle = []
