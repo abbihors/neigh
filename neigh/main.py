@@ -38,10 +38,11 @@ def predict_class(model, sample_bytes):
 
 async def vibrate_random(vibrator):
     weights = {
-        pattern_basic: 7,
+        pattern_basic: 9,
         pattern_burst: 1,
         pattern_burst_pulse: 1,
-        pattern_burst_linger: 1
+        pattern_burst_linger: 1,
+        pattern_rising: 1
     }
 
     raffle = []
@@ -59,6 +60,7 @@ async def main():
 
     print('Neigh: Listening...')
     await vibrator.vibrate(0.2, 0.2) # Do a little vibration to confirm its working
+    await vibrator.set_vibration_level(0.1)
 
     while True:
         # Run the recorder in a separate thread to prevent blocking everything while it runs
