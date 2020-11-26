@@ -9,11 +9,11 @@ class Vibrator():
     @classmethod
     async def create(cls):
         self = Vibrator()
-        
-        await start_buttplug_server()
 
         self._bp_client = await init_buttplug_client()
-        self._bp_device = self._bp_client.devices[0] # Just get the first device
+
+        # Just get the first device
+        self._bp_device = list(self._bp_client.devices.values())[0]
 
         self._vibrate_queue = asyncio.Queue()
         self._vibration_level = 0.0
@@ -46,10 +46,12 @@ class Vibrator():
     async def stop(self):
         await self._bp_device.send_stop_device_cmd()
 
+    async def disconnect(self):
+        await self._bp_client.disconnect()
 
 async def start_buttplug_server():
     await asyncio.create_subprocess_exec('intiface-cli', "--wsinsecureport", "12345")
-    await asyncio.sleep(1) # Wait for the server to start up
+    await asyncio.sleep(2) # Wait for the server to start up
 
 async def init_buttplug_client():
     client = ButtplugClient("Neigh")
@@ -64,3 +66,13 @@ async def init_buttplug_client():
 
     await client.stop_scanning()
     return client
+
+async def main():
+    vibrator = await Vibrator.create()
+    await vibrator.set_vibration_level(0.5)
+    await asyncio.sleep(0.3)
+    await vibrator.stop()
+    await vibrator.disconnect()
+
+if __name__ == "__main__":
+    asyncio.run(main())
