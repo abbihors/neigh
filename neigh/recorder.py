@@ -100,7 +100,8 @@ class Recorder():
 
         while True:
             current_data, overflowed = self._stream.read(frames=self._stream.blocksize)
-            print(int(audioop.rms(current_data)))
+            rms = int(audioop.rms(current_data, self._stream.samplesize))
+            print(rms)
             if (rms > record_vol):
                 print('Threshold met!')
 
@@ -120,3 +121,17 @@ class Recorder():
 
         # Trim
         self._data = self._data[:desired_length_bytes]
+
+# Simple program to record a 1 second sample
+if __name__ == "__main__":
+    recorder = Recorder(samplerate=16000, channels=1, dtype='int16')
+
+    print('Listening...')
+
+    # recorder.print_volume_loop(100)
+
+    # NOTE: you will have to tweak the first argument
+    recorder.listen_and_record(100, 0.1, 0.2)
+    recorder.trim_or_pad(1.0)
+
+    recorder.write_wav('recording.wav')
