@@ -59,7 +59,7 @@ async def main():
     recorder = Recorder(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16')
 
     print('Neigh: Listening...')
-    await vibrator.vibrate(0.2, 0.2) # Do a little vibration to confirm its working
+    await vibrator.enqueue(0.2, 0.2) # Do a little vibration to confirm its working
 
     while True:
         # Run the recorder in a separate thread to prevent blocking everything while it runs
