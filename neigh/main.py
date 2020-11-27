@@ -18,12 +18,6 @@ SAMPLE_RATE = 16000
 FORMAT_WIDTH_IN_BYTES = 2
 CHANNELS = 1
 
-# Seconds of silence that indicate end of speech
-MAX_SILENCE_S = 0.1
-
-# Seconds of audio to save before recording (to avoid cutting the start)
-PREV_AUDIO_S = 0.2
-
 def predict_class(model, sample_bytes):
     # Keras model expects an array of floats
     sample_floats = librosa.util.buf_to_float(sample_bytes, FORMAT_WIDTH_IN_BYTES)
@@ -65,7 +59,8 @@ async def main():
         # Run the recorder in a separate thread to prevent blocking everything while it runs
         loop = asyncio.get_running_loop()
         e = concurrent.futures.ThreadPoolExecutor()
-        await loop.run_in_executor(e, recorder.listen_and_record, settings.record_vol, MAX_SILENCE_S, PREV_AUDIO_S)
+        await loop.run_in_executor(
+            e, recorder.listen_and_record, settings.record_vol, settings.max_silence_s, settings.prev_audio_s)
 
         recorder.trim_or_pad(1.0)
         predicted_class = predict_class(model, recorder.get_bytes())
