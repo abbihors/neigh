@@ -56,7 +56,7 @@ class Recorder():
         blocks_per_second = self._stream.samplerate / self._stream.blocksize
 
         # This holds the volume averages for the last max_silence_s blocks
-        volume_log = deque(maxlen=round(blocks_per_second * max_silence_s))
+        prev_volumes = deque(maxlen=round(blocks_per_second * max_silence_s))
 
         # Blocks of previous audio to add to the start of recording, to avoid cutting off the start
         prev_audio_blocks = deque(maxlen=round(prev_audio_s * blocks_per_second))
@@ -73,10 +73,10 @@ class Recorder():
 
             # RMS is used as a measure of "average" loudness
             rms = audioop.rms(current_block, self._stream.samplesize)
-            volume_log.append(rms)
+            prev_volumes.append(rms)
 
             # At least one sample in window was above recording threshold, add to active recording
-            if (any([volume > record_vol for volume in volume_log])):
+            if (any([volume > record_vol for volume in prev_volumes])):
                 if (not recording_started):
                     recording_started = True
                 active_recording += current_block

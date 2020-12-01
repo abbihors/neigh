@@ -12,3 +12,6 @@ max_silence_s = 0.1
 
 # Seconds of audio to save before recording (to avoid cutting the start)
 prev_audio_s = 0.2
+
+# Factor applied to all vibrate commands, use to limit max vibration strength
+vibrate_factor = 0.7
