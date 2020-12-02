@@ -29,7 +29,6 @@ class Vibrator():
 
             await self._bp_device.send_vibrate_cmd(amount)
             await asyncio.sleep(on_time)
-            self._vibrate_queue.task_done()
 
             if self._vibrate_queue.empty() or off_time > 0:
                 # If there's no work or off time, go back to current level
@@ -37,10 +36,13 @@ class Vibrator():
 
             await asyncio.sleep(off_time)
 
+            self._vibrate_queue.task_done()
+
     async def enqueue(self, amount, on_time, off_time=0.0):
         await self._vibrate_queue.put([amount, on_time, off_time])
 
     async def set_level(self, amount):
+        await self._vibrate_queue.join()
         self._vibration_level = amount
         await self._bp_device.send_vibrate_cmd(self._vibration_level)
 

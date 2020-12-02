@@ -34,3 +34,20 @@ async def pattern_rising(vibrator):
         await vibrator.enqueue(settings.vibrate_factor * 0.8, 0.1)
         await vibrator.enqueue(settings.vibrate_factor * 0.9, 0.1)
         await vibrator.enqueue(settings.vibrate_factor * 1.0, 0.3, 0.2)
+
+async def vibrate_random(vibrator):
+    weights = {
+        pattern_basic: 9,
+        pattern_burst: 1,
+        pattern_burst_pulse: 1,
+        pattern_burst_linger: 1,
+        pattern_rising: 1
+    }
+
+    raffle = []
+    for pattern, weight in weights.items():
+        for i in range(weight):
+            raffle.append(pattern)
+    pattern = random.choice(raffle)
+
+    await pattern(vibrator)
