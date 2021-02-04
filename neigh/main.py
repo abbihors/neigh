@@ -29,7 +29,15 @@ saved_level = 0.0
 denied = False
 
 denial_probability = 1/40 # TODO: Put this in settings.py?
-restore_probability = 1/4
+
+def denial_rng():
+    while True:
+        gap = random.randrange(0, 5)
+
+        for _ in range(gap):
+            yield False
+
+        yield True
 
 async def base_vibration_task(vibrator):
     global saved_level
@@ -43,7 +51,7 @@ async def base_vibration_task(vibrator):
 
         # Pleasure denial, set it to 0 randomly (u can bring it back >:)
         if not denied and saved_level > 0 and random.random() < denial_probability:
-            # print('[DEBUG] denied!')
+            print('[DEBUG] denied!')
             denied = True
             await vibrator.set_level(0.0)
         elif not denied:
@@ -68,6 +76,8 @@ async def main():
 
     asyncio.create_task(base_vibration_task(vibrator))
 
+    denial_roll = denial_rng()
+
     while True:
         # Run the recorder in a separate thread to prevent blocking everything while it runs
         loop = asyncio.get_running_loop()
@@ -79,8 +89,8 @@ async def main():
         predicted_class = predict_class(model, recorder.get_bytes())
 
         if (predicted_class == 'animal'):
-            if denied and random.random() < restore_probability:
-                # print('[DEBUG] restoring')
+            if denied and next(denial_roll):
+                print('[DEBUG] restoring')
                 denied = False
                 await vibrate_random(vibrator)
                 await vibrator.set_level(saved_level)
