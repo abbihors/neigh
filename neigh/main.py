@@ -1,7 +1,8 @@
 import asyncio
 import concurrent
-import time
+import os
 import random
+import time
 
 from tensorflow.keras.models import load_model
 import librosa
@@ -102,8 +103,9 @@ async def main():
                 await vibrator.set_level(saved_level)
 
         # Save recordings to help improve model
-        epoch_time = int(time.time())
-        filename = f'{settings.recordings_path}/{predicted_class}/output_{epoch_time}.wav'
+        timestamp = int(time.time())
+        os.makedirs(f'{settings.recordings_path}/{predicted_class}', exist_ok=True)
+        filename = f'{settings.recordings_path}/{predicted_class}/output_{timestamp}.wav'
         recorder.write_wav(filename)
 
 asyncio.run(main())
