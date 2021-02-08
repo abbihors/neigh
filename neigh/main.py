@@ -10,7 +10,7 @@ import numpy as np
 
 from recorder import Recorder
 from vibrator import Vibrator
-from vibrate_patterns import *
+from vibrate_patterns import vibrate_random
 import settings
 
 def predict_class(model, sample_bytes):
@@ -93,11 +93,11 @@ async def main():
             if denied and next(denial_roll):
                 print('[DEBUG] restoring')
                 denied = False
-                await vibrate_random(vibrator)
+                await vibrate_random(vibrator, settings.vibrate_factor)
                 await vibrator.set_level(saved_level)
             elif not denied:
                 # print('[DEBUG] normal vibrate')
-                await vibrate_random(vibrator)
+                await vibrate_random(vibrator, settings.vibrate_factor)
 
                 saved_level = round(min(0.2, saved_level + 0.05), 3)
                 await vibrator.set_level(saved_level)
